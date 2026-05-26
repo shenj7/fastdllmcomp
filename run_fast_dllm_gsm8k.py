@@ -42,8 +42,9 @@ parser.add_argument("--model", default="GSAI-ML/LLaDA-8B-Base")
 parser.add_argument("--mode", choices=["baseline", "cache", "cache_parallel"],
                     default="cache_parallel",
                     help="baseline=no cache; cache=prefix cache only; cache_parallel=cache+parallel decoding")
-parser.add_argument("--steps", type=int, default=8,
-                    help="Total denoising steps budget (actual NFE may be lower with parallel)")
+parser.add_argument("--steps", type=int, default=None,
+                    help="Total denoising steps. Defaults to gen_length (256) for baseline/cache, "
+                         "gen_length//block_length (8) for cache_parallel — matching the paper.")
 parser.add_argument("--gen_length", type=int, default=256)
 parser.add_argument("--block_length", type=int, default=32,
                     help="Must divide gen_length. KV cache reuse spans within each block. "
@@ -58,6 +59,15 @@ parser.add_argument("--output", default="fast_dllm_results.txt")
 parser.add_argument("--debug_examples", type=int, default=3,
                     help="Print raw generated text for the first N examples (0 to disable)")
 args = parser.parse_args()
+
+# Paper-matching step defaults (from eval_gsm8k.sh):
+#   baseline / cache: steps = gen_length (256 total forward passes)
+#   cache_parallel:   steps = gen_length // block_length (8 total forward passes)
+if args.steps is None:
+    if args.mode == "cache_parallel":
+        args.steps = args.gen_length // args.block_length
+    else:
+        args.steps = args.gen_length
 
 # Redirect all HuggingFace downloads before any HF library is imported.
 if args.cache_dir:
@@ -182,12 +192,16 @@ def run_generation(input_ids):
         mask_id=MASK_ID,
     )
     if args.mode == "baseline":
+        # Paper baseline: steps=gen_length (256), no cache
         out, nfe = generate(model, input_ids, **kwargs)
     elif args.mode == "cache":
+        # Paper "+Cache": steps=gen_length (256), prefix cache only
         out, nfe = generate_with_prefix_cache(model, input_ids, **kwargs)
     else:  # cache_parallel
+        # Paper "+Cache+Parallel" (8.1x result): steps=gen_length//block_length (8),
+        # prefix cache + confidence threshold=0.9
         kwargs["threshold"] = args.threshold
-        out, nfe = generate_with_dual_cache(model, input_ids, **kwargs)
+        out, nfe = generate_with_prefix_cache(model, input_ids, **kwargs)
     return out, nfe
 
 
