@@ -124,17 +124,27 @@ def normalize(ans: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Load model
+# Load model — use Fast-dLLM's patched LLaDAModelLM, not AutoModel.
+# The stock HuggingFace modeling_llada.py blocks use_cache with an assert;
+# Fast-dLLM's v1/llada/model/modeling_llada.py adds KV cache support.
 # ---------------------------------------------------------------------------
 print(f"Loading model {args.model} ...")
-from transformers import AutoModel
+from transformers import AutoConfig
+
+sys.path.insert(0, str(Path(fast_dllm_path) / "llada" / "model"))
+from modeling_llada import LLaDAModelLM
+
+config = AutoConfig.from_pretrained(
+    args.model, trust_remote_code=True, cache_dir=args.cache_dir)
+config.flash_attention = True
 
 tokenizer = AutoTokenizer.from_pretrained(
     args.model, trust_remote_code=True, cache_dir=args.cache_dir)
-model = AutoModel.from_pretrained(
+model = LLaDAModelLM.from_pretrained(
     args.model,
     trust_remote_code=True,
     torch_dtype=torch.bfloat16,
+    config=config,
     cache_dir=args.cache_dir,
 ).to("cuda").eval()
 
