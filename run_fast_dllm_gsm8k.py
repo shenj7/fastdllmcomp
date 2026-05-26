@@ -56,8 +56,6 @@ parser.add_argument("--remasking", default="low_confidence")
 parser.add_argument("--n_examples", type=int, default=1000)
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument("--output", default="fast_dllm_results.txt")
-parser.add_argument("--debug_examples", type=int, default=3,
-                    help="Print raw generated text for the first N examples (0 to disable)")
 args = parser.parse_args()
 
 # Paper-matching step defaults (from eval_gsm8k.sh):
@@ -232,7 +230,6 @@ for i, ex in enumerate(selected):
 
     # Decode only the generated portion
     gen_ids = out_ids[0, input_ids.shape[1]:]
-    n_remaining_masks = (gen_ids == MASK_ID).sum().item()
     generated = tokenizer.decode(gen_ids, skip_special_tokens=True)
 
     pred = normalize(extract_answer(generated))
@@ -242,14 +239,6 @@ for i, ex in enumerate(selected):
 
     step_counts.append(nfe)
     times.append(elapsed)
-
-    if i < args.debug_examples:
-        print(f"\n[Example {i+1}]")
-        print(f"  Question : {question[:80]}...")
-        print(f"  Gold     : {gold}")
-        print(f"  Raw gen  : {repr(generated[:200])}")
-        print(f"  Pred     : {pred} | Correct: {is_correct}")
-        print(f"  NFE      : {nfe} | Masks remaining: {n_remaining_masks}/{args.gen_length}")
 
     if (i + 1) % 50 == 0:
         running_acc = correct / (i + 1) * 100
