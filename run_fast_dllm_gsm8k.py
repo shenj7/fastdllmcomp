@@ -115,10 +115,10 @@ def normalize(ans: str) -> str:
 # Load model
 # ---------------------------------------------------------------------------
 print(f"Loading model {args.model} ...")
-from transformers import AutoModelForMaskedLM
+from transformers import AutoModel
 
 tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
-model = AutoModelForMaskedLM.from_pretrained(
+model = AutoModel.from_pretrained(
     args.model,
     trust_remote_code=True,
     torch_dtype=torch.bfloat16,
