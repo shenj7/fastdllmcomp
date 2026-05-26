@@ -129,12 +129,11 @@ def normalize(ans: str) -> str:
 # Fast-dLLM's v1/llada/model/modeling_llada.py adds KV cache support.
 # ---------------------------------------------------------------------------
 print(f"Loading model {args.model} ...")
-from transformers import AutoConfig
-
 sys.path.insert(0, str(Path(fast_dllm_path) / "llada"))
 from model.modeling_llada import LLaDAModelLM
+from model.configuration_llada import LLaDAConfig
 
-config = AutoConfig.from_pretrained(
+config = LLaDAConfig.from_pretrained(
     args.model, trust_remote_code=True, cache_dir=args.cache_dir)
 config.flash_attention = True
 
