@@ -128,7 +128,8 @@ def arfi_commit_count(logits: torch.Tensor,
         mult = 1
 
     remaining = mask_index.sum(dim=1)                   # (B,) — don't commit more than remain
-    return torch.clamp(base_n * mult, min=1, max=remaining)
+    result = torch.clamp(base_n * mult, min=1)          # scalar lower bound is fine
+    return torch.minimum(result, remaining)              # tensor upper bound via minimum
 
 
 # ---------------------------------------------------------------------------
