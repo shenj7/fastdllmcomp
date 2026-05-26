@@ -131,8 +131,8 @@ def normalize(ans: str) -> str:
 print(f"Loading model {args.model} ...")
 from transformers import AutoConfig
 
-sys.path.insert(0, str(Path(fast_dllm_path) / "llada" / "model"))
-from modeling_llada import LLaDAModelLM
+sys.path.insert(0, str(Path(fast_dllm_path) / "llada"))
+from model.modeling_llada import LLaDAModelLM
 
 config = AutoConfig.from_pretrained(
     args.model, trust_remote_code=True, cache_dir=args.cache_dir)
