@@ -17,6 +17,7 @@ Prerequisites:
 """
 
 import argparse
+import os
 import random
 import re
 import sys
@@ -32,6 +33,9 @@ from transformers import AutoTokenizer
 # Argument parsing
 # ---------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument("--cache_dir", default=None,
+                    help="Root directory for all downloads (HF models, datasets). "
+                         "Overrides HF_HOME. E.g. /scratch/gilbreth/shen574")
 parser.add_argument("--fast_dllm_path", default=None,
                     help="Path to Fast-dLLM v1/ directory (or set FAST_DLLM_PATH env var)")
 parser.add_argument("--model", default="GSAI-ML/LLaDA-8B-Base")
@@ -52,6 +56,14 @@ parser.add_argument("--n_examples", type=int, default=1000)
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument("--output", default="fast_dllm_results.txt")
 args = parser.parse_args()
+
+# Redirect all HuggingFace downloads before any HF library is imported.
+if args.cache_dir:
+    hf_home = str(Path(args.cache_dir) / "hf_cache")
+    os.environ["HF_HOME"] = hf_home
+    os.environ["TRANSFORMERS_CACHE"] = str(Path(hf_home) / "hub")
+    os.environ["HF_DATASETS_CACHE"] = str(Path(hf_home) / "datasets")
+    os.makedirs(hf_home, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Locate Fast-dLLM generate.py
@@ -117,11 +129,13 @@ def normalize(ans: str) -> str:
 print(f"Loading model {args.model} ...")
 from transformers import AutoModel
 
-tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(
+    args.model, trust_remote_code=True, cache_dir=args.cache_dir)
 model = AutoModel.from_pretrained(
     args.model,
     trust_remote_code=True,
     torch_dtype=torch.bfloat16,
+    cache_dir=args.cache_dir,
 ).to("cuda").eval()
 
 MASK_ID = tokenizer.mask_token_id
@@ -133,7 +147,8 @@ if MASK_ID is None:
 # Load dataset — identical subset to run_gsm8k_paper_eval.py
 # ---------------------------------------------------------------------------
 print("Loading GSM8K test split ...")
-dataset = load_dataset("gsm8k", "main", split="test")
+dataset = load_dataset("gsm8k", "main", split="test",
+                       cache_dir=str(Path(args.cache_dir) / "hf_cache" / "datasets") if args.cache_dir else None)
 all_examples = list(dataset)
 
 random.seed(args.seed)
